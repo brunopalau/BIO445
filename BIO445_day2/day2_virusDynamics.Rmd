@@ -1,0 +1,158 @@
+---
+title: "BIO445 - Day2"
+author: "BrunoPalau"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r}
+library(deSolve)
+library(ggplot2)
+library(tidyverse)
+
+TI.model <- function(t, x, parms) {
+  Ta <- x[1] # pop 1
+  I  <- x[2] # pop 2
+  with(as.list(parms),{
+    dT <- lambda- deltaT * Ta - beta * Ta * I
+    dI <- beta * Ta * I - deltaI * I 
+    res <- c(dT, dI)
+    list(res)
+  })
+}
+
+### by varying beta
+lambda <- seq(from=500,to=1500,by=50)
+deltaT <- seq(from=0.01,0.1,0.01)
+deltaI <- seq(from=log(2)/1.39)
+beta <- seq(4,6,0.2)
+
+
+out_df <- data_frame()
+parmsTI  <- c(lambda = 1000, 
+              deltaT = 0.05,
+              deltaI = log(2)/1.39,
+              beta = NA)
+
+parmsTI["beta"] <- 5/(parmsTI["lambda"]/parmsTI["deltaT"]/parmsTI["deltaI"])
+
+xstartTI <- c(Ta = as.numeric(parmsTI["lambda"]/parmsTI["deltaT"]), # why is Ta dependent of lambda and deltaT
+              I = 1)
+times  <- seq(0, 100, length=500)
+
+#here rk4 is a function provided by R to solve differential equations which you do not have to understand in further detail
+out.TI <- as.data.frame(rk4(xstartTI, times, TI.model, parmsTI))
+out.TI$id <- rep("before",nrow(out.TI))
+
+out_df <- rbind(out_df,out.TI)
+
+
+
+
+# with treatment
+
+parmsTI["beta"] <- 0
+times  <- seq(100, 200, length=500)
+
+#here rk4 is a function provided by R to solve differential equations which you do not have to understand in further detail
+x_start <- c(Ta = as.numeric(out_df$Ta[nrow(out_df)]), I = as.numeric(out_df$I[nrow(out_df)]))
+out.TI <- as.data.frame(rk4(x_start,
+                             times,
+                             TI.model,
+                             parmsTI))
+
+out.TI$id <- rep("after",nrow(out.TI))
+
+
+out_df <- rbind(out_df,out.TI)
+  
+ggplot(out_df,aes(x = time, y= Ta, color= id))+
+  geom_point()+
+  geom_point(aes(y = I, color = as.factor(id)))
+```
+
+```{r}
+getSSQ<-function(parm){
+  # We assume that slope and intercept are entered into the function as a vector .. #.. of the form parm=c(intercept,slope)
+  # extract slope and intercept from this vector
+  intercept<-parm[1]
+  slope<-parm[2]
+  #calculate the lung-cancer incidence ...
+  #...that the linear model with those parameters would predict 
+  yPredicted<-intercept+slope*data$log_V
+  #NOTE: as a side effect, we make this function plot the predicted lung-cancer incidence
+  # lines(data$time,yPredicted,col=hsv(runif(1)),lwd=0.25)
+  #as a measure of how well the predicted incidence corresponds to the real incidence... # ..we first calculate for each data-point the squared difference between predicted .. # ..and real lung-cancer incidence
+  squaredDifference<-(yPredicted-data$log_V)^2
+  #and then take the sum over all data-points
+  ssq<-sum(squaredDifference,na.rm=T)
+# (Use the help function to find out what the option na.rm in sum means.)
+#this is then returned as a measure of how well...
+# ...the straight line characterized by parm fits the data
+  return(ssq)
+}
+```
+
+
+```{r}
+data <- read_csv("for_students/virusLoadOnTreatment.csv")
+
+
+ggplot(data,aes(x = data$time, y = V)) +
+  geom_point()
+
+# lod transform
+data$log_V <- log(data$V)
+
+ggplot(data,aes(x = time, y = log_V)) +
+  geom_point()
+
+# fit model
+getSSQ(c(12,-0.5))
+
+model <- lm(log_V ~ time, data)
+
+getSSQ(coefficients(model))
+
+intercept <- coef(model)[1]
+slope <- coef(model)[2]
+
+
+pred <- exp(intercept+slope*seq(min(data$time),max(data$time),0.001))
+maximum <- max(pred)
+
+i = 0
+y_pred <- 10000000
+threshold <- 0.01
+
+while(y_pred - (maximum/2) > threshold ){
+  i = i + 1
+  y_pred <- pred[i]
+}
+
+seq(min(data$time),max(data$time),0.001)[i]
+
+
+values <- rbind(data$log_V,pred)
+times <- rbind(data$time,data$time)
+
+ggplot(data, aes(x = time, y = log_V))+
+  geom_point()+
+  geom_smooth(method = "lm")
+
+
+new_df <- data_frame(time = c(df$time,data$time), nr_cells = c(df$pred,data$V), Dataset = c(rep("Model",nrow(df)),rep("Original Data",nrow(data))))
+
+
+ggplot(new_df, aes(x = time, y= nr_cells, color = Dataset))+
+  geom_point() +
+  geom_segment(aes(x = 1.638, y = 0, xend = 1.638, yend = 74268.28), color = "Black") +
+  geom_segment(aes(x = 0, y = 74268.28, xend = 1.638, yend = 74268.28), color = "Black") +
+  ylab("Number of Viria") +
+  xlab("Time in Days") +
+  theme_bw()
+
+
+summary(model)
+```
+

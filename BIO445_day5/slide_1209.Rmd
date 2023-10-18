@@ -1,0 +1,103 @@
+---
+title: "slide 1208"
+author: "BrunoPalau"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r}
+pacman::p_load(tidyverse, rjson, data.table, bipartite, igraph, Matrix)
+
+
+download_and_write_csv_single_network <- function(network_name){
+  networkName <- network_name
+  speciesName <- "yes"
+  url <- paste("http://www.web-of-life.es/download/", networkName, "_", speciesName, ".csv", sep = "")
+  data <- fread(url)
+  write.csv(data, file = paste(trimws(networkName), ".csv", sep = ""))
+  return(data)
+}
+
+
+files <- c("M_PL_036", "M_PL_062", "M_PL_061_48", "M_PL_009", "M_PL_042", "M_PL_019", "M_PL_020", "M_PL_045")
+coord <- c("39,46","39.28", "-4.67", "68.35", "-0.95", "-36.45", "81.82", "71")
+names <- c("Flores, Acores", "Carlin Ville, USA", "Morne, Seychellos National Park","Latnjajaure, Sweden", "Perto Villanil, Isabela Island", "Snowy mountains, Australia", "Hazen Camp, Canada", "Uummannaq Island, Greenland")
+fact <- c("Island", "Continent", "Island", "Cost", "Island", "Continent", "Continent", "Cost")
+
+df <- data_frame(file = files, coordinate = coord, name = names, location = fact, I = c(1:8))
+
+networks <- lapply(df$file,function(x){
+  network <- download_and_write_csv_single_network(x)
+  names <- network$V
+  network <- as.matrix(network[,-1])
+  rownames(network) <- names
+  
+  network[network >= 1] <- 1
+  return (network)
+})
+```
+
+```{r}
+density <- function(matrix){
+  # calculate connentedness here and store it as the variable result
+  result <- sum(rowSums(matrix))/ (nrow(matrix)*ncol(matrix))
+  return(result)
+}
+
+df$density <- unlist(lapply(networks, density))
+
+```
+
+
+```{r}
+nestedness_binmatnest2 <- function(matrix) {
+  # The following function calculates the nestedness temperature, which ranges between 0 (fully nested) and 100 (not nested)
+  value <- as.numeric(nested(matrix, "binmatnest"))
+ 
+  # modify value here as indicated in the exercise sheet
+  value <- (100-value)/100
+  
+  return(value)
+}
+
+df$nestedness <- unlist(lapply(networks, nestedness_binmatnest2))
+
+```
+
+Visualization
+```{r}
+library(ggplot2)
+
+
+ggplot(df, aes(x = nestedness, y = density, color = coord, shape = location))+
+  geom_point()+
+  scale_color_brewer()
+
+
+```
+
+
+
+
+```{r}
+nestedness_list <- c()
+density_list <- c()
+for (i in 1:10000){
+  sample <- rbinom(n_col*n_row, 1, prob = densi)  # returns 5 values that are integers <= 1, with the probability per trial of 0.6
+  mat <- matrix(sample,nrow = n_row,ncol = n_col)
+  if (any(rowSums(mat) >= 1) & any(colSums(mat) >= 1)){
+    nested <- nestedness_binmatnest2(mat)
+    nestedness_list <- c(nestedness_list,nested)
+    dens <- density(mat)
+    density_list <- c(density_list,dens)
+  }
+
+}
+
+hist(nestedness_list)
+hist(density_list)
+
+
+sum(nestedness_list < nest) / length(nestedness_list)
+```
+

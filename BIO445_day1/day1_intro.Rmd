@@ -1,0 +1,218 @@
+---
+title: "Bio450 - Day1"
+author: "BrunoPalau"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+Task 1
+
+
+```{r}
+# Task 1.2
+
+v1 <- 3
+v2 <- c(v1,1,2)
+
+# task
+v3 <- c(1,2,3,4,5)
+v4 <- c(1:5)
+
+col_mat <- cbind(v3,v4)
+row_mat <- rbind(v3,v4)
+
+# task
+ma2 <- cbind(c(1:5),c(4:8))
+
+# task
+subset <- v2[c(1,3)]
+
+# task
+ma1 <- rbind(v2,1:3,2:4)
+subset_matrix <- ma1[c(1,2),c(1,2)]
+
+# task
+rownames(ma1) <- c("patient1", "patient2", "patient3")
+colnames(ma1) <- c("variable1", "variable2", "variable3")
+
+subset_named <- ma1[c("patient1","patient2"),c("variable1","variable3")]
+
+# task
+v5 <- c(-1,2,3,4,-2)
+
+v5[v5 != 2] <- 1
+
+# task
+ma1[ma1[,1] > 1,]
+
+# task
+library(tidyverse)
+age <- c(20,25,27,18,45)
+initials <- c("D.T","H.C","B.S", "C.B", "M.P")
+
+participants <- data.frame(initials, age, stringsAsFactors = F)
+
+participants[participants$age < 25,]
+participants%>%
+  filter(age < 25)
+
+# task
+list1 <- list(participants=participants, v2=v2)
+```
+
+Task 2
+```{r}
+# import dataset
+chsi <- read.csv("/Users/bp/Uni/Computational/HS22/BIO445/module0SForStudents/chsiCourse.csv",stringsAsFactors = F)
+esophCourse <- read.csv("/Users/bp/Uni/Computational/HS22/BIO445/module0SForStudents/esophCourse.csv",stringsAsFactors = F)
+
+is.data.frame(chsi)
+is.data.frame(esophCourse)
+
+chsiCalifornia <- chsi%>%
+  filter(CHSI_State_Name.x == "California")
+```
+
+
+Task 3
+```{r}
+table(chsi$CHSI_State_Name.x)
+
+library(gmodels)
+CrossTable(esophCourse$esophBn, esophCourse$tobgp)
+
+
+ta <- table(esophCourse$esophBn, esophCourse$tobgp)
+mosaicplot(t(ta),col=T)
+
+?hist
+
+hist(chsi$Lung_Cancer, xlab = "Lung Cancer")
+
+```
+
+Task 4
+```{r}
+# The command lm(y~x,data=dataX) fits a straight line to the variables y and x... # ... from the data-set dataX. In our example:
+mo<-lm(Lung_Cancer~Smoker,data=chsi)
+# the fitted model is assigned to the variable mo
+#  The function summary(mo) gives a summary of this  model
+summary(mo)
+##with the following commands we can add the model fit to the scatter plot: # plot(), produces the scatter plot :
+plot(Lung_Cancer~Smoker,data=chsi)
+#...and abline() adds the model-line to the scatter
+abline(mo,col="blue")
+
+# 4.1
+circleSurface <- function(r){
+  return (r^2 * pi)
+}
+circleSurface(2)
+```
+
+```{r}
+# summary(mo) produces a list as output --- we assign this to the variable modSum
+modSum<-summary(mo)
+#with names(modSum) we see the names of these elements
+names(modSum)
+# the p-values are contained in the element "coefficients" modSum$coefficients
+#and correspond there to the column named "Pr(>|t|)" modSum$coefficients[,"Pr(>|t|)"]
+# we are typically not interested in the p-value for the intercept,
+# hence remove this (remove first row)
+modSum$coefficients[-1,"Pr(>|t|)"]
+# note that a negative index removes the corresponding element/row/column: # e.g. v[-1] returns the vector v without the first element;..
+#...ma[-1,] returns the matrix ma without the first row, etc
+# similarly the R-squared corresponds to the element "r.squared" and can be extracted with
+modSum$r.squared
+```
+
+```{r}
+getSSQ<-function(parm){
+# We assume that slope and intercept are entered into the function as a vector .. #.. of the form parm=c(intercept,slope)
+# extract slope and intercept from this vector
+intercept<-parm[1]
+slope<-parm[2]
+#calculate the lung-cancer incidence ...
+#...that the linear model with those parameters would predict yPredicted<-intercept+slope*chsi$Smoker
+  #NOTE: as a side effect, we make this function plot the predicted lung-cancer incidence
+  lines(chsi$Smoker,yPredicted,col=hsv(runif(1)),lwd=0.25)
+#as a measure of how well the predicted incidence corresponds to the real incidence... # ..we first calculate for each data-point the squared difference between predicted .. # ..and real lung-cancer incidence
+squaredDifference<-(yPredicted-chsi$Lung_Cancer)^2
+  #and then take the sum over all data-points
+ssq<-sum(squaredDifference,na.rm=T)
+# (Use the help function to find out what the option na.rm in sum means.)
+#this is then returned as a measure of how well...
+# ...the straight line characterized by parm fits the data return(ssq)
+}
+
+summary(mo)$coefficients[,"Estimate"]
+
+
+getSSQ(summary(mo)$coefficients[,"Estimate"])
+```
+
+```{r}
+# 4.2
+v6<-c(-1,2,-2,4,5,6,-4)
+v6positive<-v6[v6 >= 0]; v6negative<-v6[v6 < 0]
+```
+
+```{r}
+
+#for the p values
+getPvalues<-function(mo){ #this function takes a model as produced by lm() as an input
+  #make the model summary
+modSum<-summary(mo)
+#extract the p values pvalues<-modSum$coefficients[-1,"Pr(>|t|)"] # return the p values as output return(pvalues)
+}
+# for the r squared
+getR2<-function(mo){ #this function takes a model as produced by lm() as an input
+  #make the model summary
+modSum<-summary(mo) #extract the R-squared r2<-modSum$r.squared
+# return the R-squared return(r2)
+}
+#First create the matrix filled with NAs
+R2matrix<-matrix(NA,nrow=5,ncol=4)
+  #Appropriately name rows and column (Check whether this is the case)
+  rownames(R2matrix)<-colnames(chsi)[1:5]
+  colnames(R2matrix)<-colnames(chsi)[6:9]
+  ##now calculate for each combination of exposure and outcome the R2
+  for(k in 1:5){ for(j in 6:9){
+  # note here the use of the function "paste": paste(a,b,c,d....) ... # ..joins the strings a,b,c,d into one single string
+  # e.g. paste("I"," like","this course")="I like this course"
+  mo<-lm(paste((colnames(chsi)[k]),"~",(colnames(chsi)[j])),data=chsi) 
+  R2matrix[k,j-5]<-getR2(mo)
+  }
+}
+#We can plot the matrix
+heatmap(R2matrix,col = gray.colors(start=0.9, end=0.2,256),scale = "none",Rowv=NA,Colv=NA)
+```
+
+Task 5
+```{r}
+#As input we provide the intial population density (xInitial)
+# the growth Rate, the number of generations that the population is simulated.. #.. and optionally the length of the burn-in phase ..
+# .. (i.e. the length of the initial phase which is discarded for the final ouput)
+logisticMapDynamics<-function(xInitial,growthRate,nGenerations,nBurnIn){
+  dynamics<-rep(NA,nGenerations)
+  dynamics[1]<-xInitial
+  for(k in 1:(nGenerations-1)){
+      dynamics[k+1]<-growthRate*dynamics[k]*(1-dynamics[k])
+  }
+  dynamics[nBurnIn:nGenerations] }
+#here we plot  the dynamics for one choice of growth rate
+res <- c()
+for (i in seq(1,4,by=0.2)){
+  res <- cbind(res,rbind(i,logisticMapDynamics(0.01,i,100,10)))
+}
+
+plot(res[1,],res[2,],pch=".")
+
+```
+
+```{r}
+
+```
+
+
+
